@@ -5,21 +5,12 @@ from langchain_core.messages import HumanMessage
 
 from app.config import settings
 from app.models.suggestion import Suggestion
-from app.tools.file_tools import ReadFileTool, ListDirectoryTool, CreateFileTool
-from app.tools.analysis_tool import AnalyzePySparkCodeTool, set_rules
-from app.tools.apply_tool import ApplyChangesTool
+from app.tools.file_tools import read_file, list_directory, create_file
+from app.tools.analysis_tool import analyze_pyspark_code, set_rules
+from app.tools.apply_tool import apply_changes
 from app.agent.prompts import build_system_prompt, get_rules_content
 
-
-def _build_langchain_tools() -> list:
-    tool_instances = [
-        ReadFileTool(),
-        ListDirectoryTool(),
-        AnalyzePySparkCodeTool(),
-        ApplyChangesTool(),
-        CreateFileTool(),
-    ]
-    return [t.to_langchain_tool() for t in tool_instances]
+_TOOLS = [read_file, list_directory, create_file, analyze_pyspark_code, apply_changes]
 
 
 def _build_agent(system_prompt: str):
@@ -29,20 +20,12 @@ def _build_agent(system_prompt: str):
         max_tokens=settings.max_tokens,
         temperature=settings.temperature,
     )
-    tools = _build_langchain_tools()
-    return create_agent(
-        model=llm,
-        tools=tools,
-        system_prompt=system_prompt,
-    )
+    return create_agent(model=llm, tools=_TOOLS, system_prompt=system_prompt)
 
 
 async def run_analysis(file_path: str, rules_prompt_path: str) -> list[Suggestion]:
     system_prompt = build_system_prompt(rules_prompt_path)
-    rules_content = get_rules_content(rules_prompt_path)
-
-    # Make rules available to AnalyzePySparkCodeTool without passing through LLM
-    set_rules(rules_content)
+    set_rules(get_rules_content(rules_prompt_path))
 
     agent = _build_agent(system_prompt)
 
@@ -54,7 +37,6 @@ async def run_analysis(file_path: str, rules_prompt_path: str) -> list[Suggestio
 
     result = await agent.ainvoke({"messages": [HumanMessage(content=task_message)]})
 
-    # Extract last AI message content
     raw_output = "[]"
     for msg in reversed(result.get("messages", [])):
         content = getattr(msg, "content", "")

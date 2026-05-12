@@ -1,10 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from app.models.suggestion import ApplyRequest, ApplyResult
 from app.session_store import get_suggestions_by_ids, get_session
-from app.tools.apply_tool import ApplyChangesTool
+from app.tools.apply_tool import apply_suggestions
 
 router = APIRouter()
-_apply_tool = ApplyChangesTool()
 
 
 @router.post("/apply", response_model=ApplyResult)
@@ -20,10 +19,7 @@ async def apply_endpoint(request: ApplyRequest):
     if not matched:
         return ApplyResult(applied=[], skipped=skipped, message="No matching suggestions to apply.")
 
-    message = _apply_tool.apply_suggestions(
-        file_path=session.file_path,
-        suggestions=matched,
-    )
+    message = apply_suggestions(file_path=session.file_path, suggestions=matched)
 
     return ApplyResult(
         applied=[s.id for s in matched],
