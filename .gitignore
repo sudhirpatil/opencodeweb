@@ -1,0 +1,43 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment variables — never commit secrets
+.env
+.env.local
+.env.*.local
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Distribution / build
+dist/
+build/
+*.egg-info/
+*.egg
+
+# pytest / test cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# LangChain / LangGraph cache
+.langchain.db
+langchain_cache/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude Code settings (local only)
+.claude/settings.local.json

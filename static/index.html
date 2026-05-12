@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PySpark Code Review Agent</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; color: #222; }
+
+    header {
+      background: #1a1a2e; color: #fff; padding: 16px 24px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 600; }
+    header span { font-size: 0.8rem; opacity: 0.6; }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+
+    /* Input panel */
+    .input-panel {
+      background: #fff; border-radius: 8px; padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.1); margin-bottom: 20px;
+    }
+    .input-panel h2 { font-size: 0.95rem; font-weight: 600; margin-bottom: 14px; color: #444; }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 500; margin-bottom: 4px; color: #555; }
+    .field input {
+      width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px;
+      font-size: 0.9rem; font-family: monospace;
+    }
+    .field input:focus { outline: none; border-color: #4a6cf7; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 18px; border: none; border-radius: 6px;
+      font-size: 0.88rem; font-weight: 500; cursor: pointer; transition: opacity .15s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: #4a6cf7; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #3a5ce0; }
+    .btn-success { background: #22a06b; color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #1a8055; }
+
+    /* Spinner */
+    .spinner {
+      display: none; align-items: center; gap: 10px;
+      color: #666; font-size: 0.88rem; margin-top: 12px;
+    }
+    .spinner.active { display: flex; }
+    .spin {
+      width: 18px; height: 18px; border: 2px solid #ddd;
+      border-top-color: #4a6cf7; border-radius: 50%; animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Status bar */
+    .status-bar {
+      display: none; padding: 10px 14px; border-radius: 6px;
+      font-size: 0.875rem; margin-bottom: 16px;
+    }
+    .status-bar.success { display: block; background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .status-bar.error   { display: block; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .status-bar.info    { display: block; background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+    /* Results panel */
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .results-header h2 { font-size: 0.95rem; font-weight: 600; color: #444; }
+    .results-count { font-size: 0.82rem; color: #888; }
+
+    /* Suggestion card */
+    .suggestion-card {
+      background: #fff; border-radius: 8px; border: 1px solid #e5e7eb;
+      padding: 16px; margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+      transition: border-color .15s;
+    }
+    .suggestion-card.selected { border-color: #4a6cf7; }
+
+    .card-header {
+      display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px;
+    }
+    .card-checkbox { width: 16px; height: 16px; margin-top: 3px; cursor: pointer; flex-shrink: 0; accent-color: #4a6cf7; }
+    .card-title { flex: 1; }
+    .card-id { font-size: 0.78rem; font-weight: 600; color: #4a6cf7; font-family: monospace; }
+    .card-rule { font-size: 0.78rem; color: #888; margin-top: 1px; }
+
+    .card-meta {
+      font-size: 0.8rem; color: #666; margin-bottom: 8px;
+      display: flex; gap: 16px; flex-wrap: wrap;
+    }
+    .card-meta span { display: flex; align-items: center; gap: 4px; }
+
+    .card-description {
+      font-size: 0.875rem; color: #333; margin-bottom: 12px; line-height: 1.5;
+    }
+
+    .diff-block { border-radius: 6px; overflow: hidden; font-size: 0.82rem; }
+    .diff-label {
+      font-size: 0.75rem; font-weight: 600; padding: 4px 10px;
+      text-transform: uppercase; letter-spacing: .04em;
+    }
+    .diff-removed .diff-label { background: #ffeef0; color: #c0392b; }
+    .diff-added   .diff-label { background: #e6ffed; color: #22863a; }
+    pre.diff-code {
+      padding: 10px; margin: 0; overflow-x: auto;
+      white-space: pre; line-height: 1.5;
+    }
+    .diff-removed pre.diff-code { background: #fff5f5; color: #c0392b; }
+    .diff-added   pre.diff-code { background: #f0fff4; color: #22863a; }
+
+    .diff-arrow {
+      text-align: center; padding: 6px; color: #aaa; font-size: 1.1rem;
+    }
+
+    .empty-state {
+      text-align: center; padding: 48px 24px; color: #aaa;
+      font-size: 0.9rem;
+    }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; }
+
+    .apply-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 16px; padding-top: 12px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .select-all-label { font-size: 0.85rem; color: #555; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>PySpark Code Review Agent</h1>
+    <span>Powered by Claude + LangChain</span>
+  </div>
+</header>
+
+<div class="container">
+  <!-- Input Panel -->
+  <div class="input-panel">
+    <h2>Analyze a PySpark File</h2>
+    <div class="field">
+      <label for="filePathInput">PySpark File Path</label>
+      <input type="text" id="filePathInput" placeholder="/path/to/your/pyspark_job.py" />
+    </div>
+    <div class="field">
+      <label for="rulesPathInput">Rules Prompt File Path</label>
+      <input type="text" id="rulesPathInput" placeholder="rules/default_rules.md" value="rules/default_rules.md" />
+    </div>
+    <button class="btn btn-primary" id="analyzeBtn" onclick="analyze()">
+      Analyze Code
+    </button>
+    <div class="spinner" id="spinner">
+      <div class="spin"></div>
+      <span id="spinnerMsg">Agent is analyzing your code&hellip;</span>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar" id="statusBar"></div>
+
+  <!-- Results -->
+  <div id="resultsSection" style="display:none">
+    <div class="results-header">
+      <h2>Suggestions</h2>
+      <span class="results-count" id="resultsCount"></span>
+    </div>
+
+    <div id="suggestionsContainer">
+      <div class="empty-state">
+        <div class="icon">&#128269;</div>
+        <div>No suggestions yet. Run an analysis above.</div>
+      </div>
+    </div>
+
+    <div class="apply-bar">
+      <label class="select-all-label">
+        <input type="checkbox" id="selectAllChk" onchange="toggleSelectAll(this)" />
+        Select all
+      </label>
+      <button class="btn btn-success" id="applyBtn" onclick="applySelected()" disabled>
+        Apply Selected (0)
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let state = { sessionId: null, filePath: null, suggestions: [] };
+
+  // ── Analyze ──────────────────────────────────────────────────────────────────
+  async function analyze() {
+    const filePath   = document.getElementById("filePathInput").value.trim();
+    const rulesPath  = document.getElementById("rulesPathInput").value.trim();
+
+    if (!filePath || !rulesPath) {
+      showStatus("Please fill in both file path fields.", "error");
+      return;
+    }
+
+    setLoading(true, "Agent is analyzing your code…");
+    clearStatus();
+
+    try {
+      const res = await fetch("/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_path: filePath, rules_prompt_path: rulesPath }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Unknown error");
+
+      state.sessionId  = data.session_id;
+      state.filePath   = filePath;
+      state.suggestions = data.suggestions;
+
+      renderSuggestions(data.suggestions);
+      showStatus(
+        `Analysis complete. Found ${data.suggestions.length} suggestion(s). Session: ${data.session_id}`,
+        "info"
+      );
+    } catch (err) {
+      showStatus("Analysis failed: " + err.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Render suggestions ────────────────────────────────────────────────────────
+  function renderSuggestions(suggestions) {
+    const container = document.getElementById("suggestionsContainer");
+    const section   = document.getElementById("resultsSection");
+    const countEl   = document.getElementById("resultsCount");
+    const applyBtn  = document.getElementById("applyBtn");
+    const selectAll = document.getElementById("selectAllChk");
+
+    section.style.display = "block";
+    countEl.textContent   = suggestions.length + " suggestion(s) found";
+    selectAll.checked     = false;
+
+    if (!suggestions.length) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">&#10003;</div>
+          <div>No issues found — your PySpark code looks good!</div>
+        </div>`;
+      applyBtn.disabled = true;
+      applyBtn.textContent = "Apply Selected (0)";
+      return;
+    }
+
+    container.innerHTML = suggestions.map(s => `
+      <div class="suggestion-card" id="card-${s.id}">
+        <div class="card-header">
+          <input type="checkbox" class="card-checkbox" value="${s.id}"
+                 onchange="onCheckboxChange()" id="chk-${s.id}" />
+          <div class="card-title">
+            <div class="card-id">${escHtml(s.id)}</div>
+            <div class="card-rule">${escHtml(s.rule_reference)}</div>
+          </div>
+        </div>
+        <div class="card-meta">
+          <span>&#128196; ${escHtml(s.file_path)}</span>
+          <span>&#128204; Lines ${s.line_start}&ndash;${s.line_end}</span>
+        </div>
+        <div class="card-description">${escHtml(s.description)}</div>
+        <div class="diff-block">
+          <div class="diff-removed">
+            <div class="diff-label">Before</div>
+            <pre class="diff-code">${escHtml(s.original_code)}</pre>
+          </div>
+          <div class="diff-arrow">&#8595;</div>
+          <div class="diff-added">
+            <div class="diff-label">After</div>
+            <pre class="diff-code">${escHtml(s.suggested_code)}</pre>
+          </div>
+        </div>
+      </div>
+    `).join("");
+
+    applyBtn.disabled = true;
+    applyBtn.textContent = "Apply Selected (0)";
+  }
+
+  // ── Checkbox logic ─────────────────────────────────────────────────────────────
+  function onCheckboxChange() {
+    const checked = getCheckedIds();
+    const applyBtn = document.getElementById("applyBtn");
+    applyBtn.disabled = checked.length === 0;
+    applyBtn.textContent = `Apply Selected (${checked.length})`;
+
+    // Update card border
+    state.suggestions.forEach(s => {
+      const card = document.getElementById("card-" + s.id);
+      const chk  = document.getElementById("chk-" + s.id);
+      if (card && chk) {
+        card.classList.toggle("selected", chk.checked);
+      }
+    });
+
+    const allChk = document.getElementById("selectAllChk");
+    const total  = document.querySelectorAll(".card-checkbox").length;
+    allChk.checked = checked.length === total && total > 0;
+    allChk.indeterminate = checked.length > 0 && checked.length < total;
+  }
+
+  function toggleSelectAll(master) {
+    document.querySelectorAll(".card-checkbox").forEach(chk => {
+      chk.checked = master.checked;
+    });
+    onCheckboxChange();
+  }
+
+  function getCheckedIds() {
+    return Array.from(document.querySelectorAll(".card-checkbox:checked")).map(c => c.value);
+  }
+
+  // ── Apply ─────────────────────────────────────────────────────────────────────
+  async function applySelected() {
+    const ids = getCheckedIds();
+    if (!ids.length) { showStatus("No suggestions selected.", "error"); return; }
+    if (!state.sessionId) { showStatus("No active session. Run analysis first.", "error"); return; }
+
+    setLoading(true, "Applying selected changes…");
+    clearStatus();
+
+    try {
+      const res = await fetch("/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: state.sessionId,
+          selected_suggestion_ids: ids,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Unknown error");
+
+      showStatus(
+        `${data.message} | Applied: ${data.applied.join(", ") || "none"}`
+        + (data.skipped.length ? ` | Skipped: ${data.skipped.join(", ")}` : ""),
+        "success"
+      );
+
+      // Disable applied checkboxes
+      data.applied.forEach(id => {
+        const chk  = document.getElementById("chk-" + id);
+        const card = document.getElementById("card-" + id);
+        if (chk)  { chk.disabled = true; chk.checked = false; }
+        if (card) { card.style.opacity = "0.5"; }
+      });
+      onCheckboxChange();
+    } catch (err) {
+      showStatus("Apply failed: " + err.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  function setLoading(active, msg) {
+    const spinner  = document.getElementById("spinner");
+    const spinMsg  = document.getElementById("spinnerMsg");
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const applyBtn   = document.getElementById("applyBtn");
+    spinner.classList.toggle("active", active);
+    if (msg) spinMsg.textContent = msg;
+    analyzeBtn.disabled = active;
+    if (active) applyBtn.disabled = true;
+  }
+
+  function showStatus(msg, type) {
+    const bar = document.getElementById("statusBar");
+    bar.textContent = msg;
+    bar.className   = "status-bar " + type;
+  }
+
+  function clearStatus() {
+    const bar = document.getElementById("statusBar");
+    bar.className = "status-bar";
+  }
+
+  function escHtml(str) {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+</script>
+</body>
+</html>
