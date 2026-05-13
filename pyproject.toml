@@ -1,0 +1,23 @@
+[project]
+name = "opencodeweb"
+version = "0.1.0"
+description = "PySpark Code Review Agent — FastAPI + LangChain + Anthropic"
+authors = [
+    {name = "sudhirpatil"}
+]
+requires-python = "^3.11"
+dependencies = [
+    "langchain (>=0.3.0)",
+    "langchain-anthropic (>=0.3.0)",
+    "langchain-core (>=0.3.0)",
+    "fastapi (>=0.115.0)",
+    "uvicorn[standard] (>=0.34.0)",
+    "pydantic (>=2.10.0)",
+    "pydantic-settings (>=2.7.0)",
+    "python-dotenv (>=1.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
