@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     model_name: str = "claude-sonnet-4-6"
     max_tokens: int = 8192
     temperature: float = 0.0
-    static_dir: str = "static"
+    static_dir: str = "src/static"
 
 
 settings = Settings()
