@@ -62,6 +62,7 @@ def analyze_pyspark_code(file_path: str) -> str:
 
     response = llm.invoke(prompt)
     raw = response.content.strip()
+    print(f"LLM Response: {raw}")
 
     if raw.startswith("```"):
         raw = raw.split("```", 2)[1]
@@ -72,7 +73,7 @@ def analyze_pyspark_code(file_path: str) -> str:
     try:
         data = json.loads(raw)
         for item in data:
-            item.setdefault("file_path", file_path)
+            item["file_path"] = file_path  # always override — LLM often returns "" or "unknown"
         return json.dumps(data)
     except json.JSONDecodeError:
         return json.dumps([])
